@@ -1,4 +1,3 @@
-from itertools import count
 from time import sleep
 from classes import Board
 
@@ -21,7 +20,7 @@ def main():
     total_moves = 0
 
     for en in tmp:
-        total_moves += len(board.get_all_piece_moves(en))
+        total_moves += len(board.get_piece_moves(en))
 
 
     print(total_moves)
