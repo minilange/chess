@@ -1,16 +1,12 @@
-
-
-from decimal import DivisionByZero
 import math
-
+from decimal import DivisionByZero
 
 class Board():
 
     #
     # ---FUNCTIONS---
     # Function that returns all available pieces
-    # Function to get all available moves for a selected field
-    # Function to check the board for check and checkmate
+    # Function to check the board if player is checked
     # Function to load game using FEN notaion -- https://www.chess.com/terms/fen-chess -- ALL PIECES OF FEN NOT ONLY BOARD
     #
     #
@@ -18,13 +14,17 @@ class Board():
     #
     #
 
-    turn = 1
+
+    # False = blacks turn
+    # True  = whites turn
+    turn = False
+
     whites = []
     blacks = []
     castle_white = True
     castle_black = True
 
-    def __init__(self, fen):
+    def __init__(self, fen=""):
         self.board_history = []
         self.load_fen_board(fen)
 
@@ -41,16 +41,15 @@ class Board():
         except DivisionByZero:
             return "a8"
 
-    def get_piece_moves(self, pos):
+    def get_piece_moves(self, piece_pos, examine_board=None):
 
         # Initializes a list for all available moves
         available_moves = []
 
-        # Select numeric value for piece position
-        piece_pos = self.select_piece(pos)
-
         # Select piece from numeric position
         piece = self.board[piece_pos]
+
+        copy_board = self.board.copy() if examine_board is None else examine_board
 
         # Initialize a blank board
         board = [None for _ in range(64)]
@@ -82,10 +81,11 @@ class Board():
                 if piece.symbol == "N" and abs(piece_pos % 8 - total % 8) > 2:
                     continue
 
-                # Breaks if direction hits another piece, and marks enemy piece as 'X'
-                if self.board[total] != None:
-                    if self.board[total].color != piece.color:
+                # Breaks if direction hits another piece, and marks enemy piece as 'X' 
+                if copy_board[total] != None:
+                    if copy_board[total].color != piece.color:
                         board[total] = "X"
+                        available_moves.append(total)
                     break
 
                 # Makes sure offset num is not making it to be Out of Bounds
@@ -93,8 +93,8 @@ class Board():
                     idx_offset = 0
 
                 # Checks if move is exceeding the side border, and breaks if so
-                if ((total % 8 == 7 and (dir[idx + idx_offset] + piece_pos) % 8 == 0) or \
-                    (total % 8 == 0 and (dir[idx + idx_offset] + piece_pos) % 8 == 7)) and piece.symbol != "N":
+                if ((total % 8 == 7 and (dir[idx + idx_offset] + piece_pos) % 8 == 0) or
+                        (total % 8 == 0 and (dir[idx + idx_offset] + piece_pos) % 8 == 7)) and piece.symbol != "N":
                     break
 
                 # Sets a '#' for every available move
@@ -105,22 +105,83 @@ class Board():
         board[piece_pos] = piece
 
         # Display all the current available moves
-        self.display(board)
+        # self.display(board)
 
         return available_moves
 
-    def move_piece(self, from_pos, to_pos):
+    def is_move_legal(self, from_pos, to_pos):
+        
+        # Determine whos king to look for and choose enemy piece set
+        symbol = "K" if self.turn else "k"
+        enemy_pieces = self.blacks if self.turn else self.whites
 
-        piece_pos = self.select_piece(from_pos)
-        piece = self.board[piece_pos]
+        # Create a copy of the board
+        examine_board = self.board.copy()
 
-        target_pos = self.select_piece(to_pos)
-        target = self.board[target_pos]
+        # Move piece to specified spot and leave origin as None
+        examine_board[to_pos] = examine_board[from_pos]
+        examine_board[from_pos] = None
 
-        self.board[piece_pos] = None
+        # Retrieve the position of the king
+        king_pos = [idx for idx, piece in enumerate(
+            examine_board) if piece is not None and piece.symbol == symbol]
 
-        if target is not None:
-            print(f"{piece} killed {target} - {from_pos}-{to_pos}")
+        if len(king_pos) == 0:
+            return False
+
+        king_pos = king_pos[0]
+        
+        # Iterate through every enemy move and if an enemy piece can kill king return 'illegal'
+        for spot in enemy_pieces:
+            if king_pos in self.get_piece_moves(spot, examine_board):
+                return False
+        
+        # If no move could kill the king, return 'legal'
+        return True
+
+    def get_all_legal_moves_for_pos(self, pos):
+        
+        # Initiate a list for all legal moves for piece
+        legal_moves = []
+
+        # Get all psuedo legal moves
+        piece_moves = self.get_piece_moves(pos)
+        
+        # Iterate through every move and remove illegal mvoes
+        for move in piece_moves:
+            if self.is_move_legal(pos, move):
+                legal_moves.append(move)
+        
+        return legal_moves
+
+    def is_player_checkmate(self):
+        
+        # Select current player piece set
+        player_pieces = self.whites if self.turn else self.blacks
+
+        # Iterate through evert piece and see if they have any legal moves
+        for piece in player_pieces:
+            moves = self.get_all_legal_moves_for_pos(piece)
+
+            # If a legal move was found, return 'not checkmate'
+            if len(moves) > 0:
+                return False
+        
+        # If there were found no legal moves in piece set reutrn 'checkmate'
+        return True
+
+    # def move_piece(self, from_pos, to_pos):
+
+    #     piece_pos = self.select_piece(from_pos)
+    #     piece = self.board[piece_pos]
+
+    #     target_pos = self.select_piece(to_pos)
+    #     target = self.board[target_pos]
+
+    #     self.board[piece_pos] = None
+
+    #     if target is not None:
+    #         print(f"{piece} killed {target} - {from_pos}-{to_pos}")
 
     def load_fen_board(self, fen_string: str):
 
@@ -172,9 +233,9 @@ class Board():
 
                     # Checks the color of the piece by char-case, appends to correct list
                     if entry.islower():
-                        blacks.append(piece)
+                        blacks.append(len(board) - 1)
                     else:
-                        whites.append(piece)
+                        whites.append(len(board) - 1)
 
         # If FEN notation is not correct, use default game
         if len(board) != 64:
@@ -196,13 +257,12 @@ class Board():
         # Prints out every rank with rank number on both sides
         # pieces are represented as corresponding char and empty spaces as dots
         for i in range(8):
-            rank = str([f"{piece}" if piece is not None else "." for piece in board[i *
-                       8:i * 8 + 8]]).replace("'", "").replace(",", "")[1:-1]
+            rank = str([f"{piece}" if piece is not None else "." for piece in board[i * 8:i * 8 + 8]]
+                       ).replace("'", "").replace(",", "")[1:-1]
             print(f'{8-i}| {rank} |{8-i}')
 
         # Prints out bottom row of characters A-H overlined
         print(u"  \u203EA\u0305\u203EB\u0305\u203EC\u0305\u203ED\u0305\u203EE\u0305\u203EF\u0305\u203EG\u0305\u203EH\u0305\u203E")
-
 
 def max_move(num):
     return [num*(n+1) for n in range(7)]
