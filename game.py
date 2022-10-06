@@ -32,20 +32,134 @@ def main():
     # print(total_moves)
 
 
-    board = Board("rnbqkbnr/ppppp2p/8/5ppQ/3PP3/8/PPP2PPP/RNB1KBNR")
+    board = Board("rnbqkbnr/ppppp2p/PPP2PPP/RNB1KBNR")
+    # board = Board("rnbqkbnr/ppppp2p/8/5ppQ/3PP3/8/PPP2PPP/RNB1KBNR")
 
     # board = Board()
     board.display()
 
     while not board.is_player_checkmate():
-        print()
-        test = input()
-        print(test*2)
+        
+        print_turn(board)
+        
+        piece, moves = select_a_piece(board)
+
+        while not select_move(board, piece, moves):       
+            piece, moves = select_a_piece(board)
+
+        
+        board.turn = not board.turn
     
-    winner = "White" if not board.turn else "Black"
+    winner = "Whites" if not board.turn else "Blacks"
 
     print(f"The winner is {winner}")
 
+
+def print_turn(board: Board):
+    
+    # Decide wether its whites or blacks turn
+    turn = "White" if board.turn else "Black"
+    
+    # Print whose turn it is
+    print(f"{turn} turn to make a move")
+
+
+def select_a_piece(board: Board):
+
+    # Initiate move as None
+    move = None
+
+    # Select a valid move, and ask for a new until a valid is parsed
+    while move is None:
+
+        # Retrieve userinput move
+        move = input("Select a piece to display it's possible movements: ").lower()
+
+        # Checks if selected position is a valid position
+        if len(move) != 2:
+            print(f"'{move}' is not a valid arguemnt, try again!")
+            move = None
+
+        # Select current players piece set
+        piece_set = board.whites if board.turn else board.blacks
+
+        # Retrieve selected postion as a numerical position
+        num_move = board.select_piece(move)
+
+        # Checks if selected numerical move is in the piece set
+        if num_move not in piece_set:
+            print(f"'{move}' is not one of your pieces, try again!")
+            move = None 
+
+    # Display all options for moves and retrieves all legal moves
+    legal_moves = display_options(board, move)
+
+    # Return numerical position for piece, and all legal moves
+    return num_move, legal_moves
+
+
+def display_options(board: Board, selected: str):
+
+    # Retrieve the numerical position for selected piece
+    numerical_pos = board.select_piece(selected)
+
+    # Get all legal moves for selected piece
+    moves = board.get_all_legal_moves_for_pos(numerical_pos)
+    
+    # Create a copy of the board
+    copy = board.board.copy()
+    
+    # Change copy board with all legal moves with '#' if space is not occupied and 'X' if possibility to kill an enemy
+    for move in moves:
+        if copy[move] is None:
+            copy[move] = "#"
+        else:
+            copy[move] = "X"
+    
+    # Display copy board with move options
+    board.display(copy)
+
+    # Return all legal moves
+    return moves
+
+
+def select_move(board: Board, piece, moves):
+
+    print(piece, moves)
+
+    # Initiate move as None
+    move = None
+
+    # Select a valid move, and detects if operation is canceled
+    while board.select_piece(move) not in moves:
+
+        # Retrieve userinput move
+        move = input("Select one of the highlighted moves, or cancel: ")
+
+        # Check if no move is desired
+        if move.lower() == "cancel":
+            board.display()
+            return False
+
+        # Check if move is valid format
+        if len(move) != 2:
+            print(f"'{move}' is not a valid arguemnt, try again!")
+            move = None
+    
+    # Retrieves the numerical position for selected move 
+    num_move = board.select_piece(move)
+    
+    # Make the selected move on the board
+    board.make_move(piece, num_move)
+
+    return True
+    
+    
+
+
+
+
+    
 
 if __name__ == "__main__":
     main()

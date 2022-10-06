@@ -17,7 +17,7 @@ class Board():
 
     # False = blacks turn
     # True  = whites turn
-    turn = False
+    turn = True
 
     whites = []
     blacks = []
@@ -29,11 +29,20 @@ class Board():
         self.load_fen_board(fen)
 
     def select_piece(self, pos):
+
+        # returns -1 if no position was parsed
+        if pos is None:
+            return -1
+        
+        # Calculate the numerical value for string pos
         file = ord(pos[0]) - 97
         rank = 8 - int(pos[1])
+
         return (rank * 8) + file
 
     def int_to_pos(self, num):
+        
+        # returns the string position of a numerical position
         try:
             rank = 8 - math.floor(num / 8)
             file = chr(97 + (num % 8))
@@ -170,18 +179,21 @@ class Board():
         # If there were found no legal moves in piece set reutrn 'checkmate'
         return True
 
-    # def move_piece(self, from_pos, to_pos):
+    def make_move(self, from_pos, to_pos):
+        
+        # check if the position which the piece is moving to, is already occupied
+        if self.board[to_pos] is None:
+            message = "" 
+        else: 
+            message = f" and killed {self.board[to_pos]}"
+        
+        # Print message for the move
+        print(f"Moved {self.int_to_pos(from_pos)} to {self.int_to_pos(to_pos)}{message}")
 
-    #     piece_pos = self.select_piece(from_pos)
-    #     piece = self.board[piece_pos]
+        # Move piece from 'from_pos' to 'to_pos' and leave 'from_pos' with None
+        self.board[to_pos] = self.board[from_pos]
+        self.board[from_pos] = None
 
-    #     target_pos = self.select_piece(to_pos)
-    #     target = self.board[target_pos]
-
-    #     self.board[piece_pos] = None
-
-    #     if target is not None:
-    #         print(f"{piece} killed {target} - {from_pos}-{to_pos}")
 
     def load_fen_board(self, fen_string: str):
 
