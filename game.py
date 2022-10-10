@@ -1,6 +1,4 @@
-import os
-from time import sleep
-from classes import Board
+from chess import Board
 
 
 
@@ -32,10 +30,18 @@ def main():
     # print(total_moves)
 
 
-    board = Board("rnbqkbnr/ppppp2p/PPP2PPP/RNB1KBNR")
+    # board = Board("rnbqkbnr/ppppp2p/PPP2PPP/RNB1KBNR")
     # board = Board("rnbqkbnr/ppppp2p/8/5ppQ/3PP3/8/PPP2PPP/RNB1KBNR")
+    
+    player_color = None
+    while player_color is None:
+        player_color = input("Choose a color, white or black: ")
+        
+        if player_color.lower() != "white" and player_color.lower() != "black":
+            player_color = None
 
-    # board = Board()
+
+    board = Board()
     board.display()
 
     while not board.is_player_checkmate():
@@ -49,8 +55,10 @@ def main():
 
         
         board.turn = not board.turn
+
+        board.display()
     
-    winner = "Whites" if not board.turn else "Blacks"
+    winner = "Blacks" if board.turn else "Whites"
 
     print(f"The winner is {winner}")
 

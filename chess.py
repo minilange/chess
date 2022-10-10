@@ -57,6 +57,7 @@ class Board():
 
         # Select piece from numeric position
         piece = self.board[piece_pos]
+        # print(piece, piece_pos, self.board)
 
         copy_board = self.board.copy() if examine_board is None else examine_board
 
@@ -189,11 +190,24 @@ class Board():
         
         # Print message for the move
         print(f"Moved {self.int_to_pos(from_pos)} to {self.int_to_pos(to_pos)}{message}")
+            
+        # Makes sure piece lists are up-to-date
+        if self.turn:
+            self.whites.remove(from_pos)
+            self.whites.append(to_pos)
+            if self.board[to_pos] is not None:
+                self.blacks.remove(to_pos)
+        else:
+            self.blacks.remove(from_pos)
+            self.blacks.append(to_pos)
+            if self.board[to_pos] is not None:
+                self.whites.remove(to_pos)
 
+        
+        
         # Move piece from 'from_pos' to 'to_pos' and leave 'from_pos' with None
         self.board[to_pos] = self.board[from_pos]
         self.board[from_pos] = None
-
 
     def load_fen_board(self, fen_string: str):
 
