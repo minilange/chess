@@ -76,19 +76,28 @@ class Board():
             if not piece.haveMoved:
                 new_pattern = (pattern[0] + piece.init_pattern[0]).copy()
                 pattern = [new_pattern]
+
+            # Checks if Pawn can kill an opponant piece
+            for move in piece.attack_pattern[0]:
+
+                # Makes sure move is within the board
+                if piece_pos + move < 0 or piece_pos + move > 63:
+                    break
+
+                # Checks if there is an piece on attack spot
+                if self.board[piece_pos + move] != None and self.board[piece_pos + move].color != piece.color:
+                    available_moves.append(piece_pos + move)
             
             # Checks if an opposing pawn is to the left of pawn, and if en passant is allowed
             if isinstance(self.board[piece_pos - 1], Pawn):
                 if self.board[piece_pos - 1].en_passant:
                     available_moves.append(piece_pos + piece.attack_pattern[0][0])
-                    # board[piece_pos + piece.attack_pattern[0][0]] = "#"
-
+                    
             # # Checks if an opposing pawn is to the right of pawn, and if en passant is allowed
             if isinstance(self.board[piece_pos + 1], Pawn):
                 if self.board[piece_pos + 1].en_passant:
                     available_moves.append(piece_pos + piece.attack_pattern[0][1])
-                    # board[piece_pos + piece.attack_pattern[0][1]] = "#"
-
+                
 
         # Iterate through every direction in patterns
         for dir in pattern:
@@ -261,7 +270,7 @@ class Board():
         # Updates opponents piece list if en passant was performed
         if en_passant_move != 0:
             opponent.remove(en_passant_move)
-            
+
 
         # Makes sure piece is marked as moved
         self.board[from_pos].haveMoved = True
