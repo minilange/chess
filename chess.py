@@ -1,6 +1,8 @@
 import math
 from decimal import DivisionByZero
 
+from pieces import Bishop, King, Knight, Pawn, Queen, Rook
+
 class Board():
 
     #
@@ -14,7 +16,6 @@ class Board():
     #
     #
 
-
     # False = blacks turn
     # True  = whites turn
     turn = True
@@ -24,24 +25,24 @@ class Board():
     castle_white = True
     castle_black = True
 
-    def __init__(self, fen=""):
+    def __init__(self, fen: str = ""):
         self.board_history = []
         self.load_fen_board(fen)
 
-    def select_piece(self, pos):
+    def select_piece(self, pos: str):
 
         # returns -1 if no position was parsed
         if pos is None:
             return -1
-        
+
         # Calculate the numerical value for string pos
         file = ord(pos[0]) - 97
         rank = 8 - int(pos[1])
 
         return (rank * 8) + file
 
-    def int_to_pos(self, num):
-        
+    def int_to_pos(self, num: int):
+
         # returns the string position of a numerical position
         try:
             rank = 8 - math.floor(num / 8)
@@ -50,7 +51,7 @@ class Board():
         except DivisionByZero:
             return "a8"
 
-    def get_piece_moves(self, piece_pos, examine_board=None):
+    def get_piece_moves(self, piece_pos: int, examine_board: list[int] = None):
 
         # Initializes a list for all available moves
         available_moves = []
@@ -67,9 +68,26 @@ class Board():
         # Makes sure it's parsed by value and not reference
         pattern = piece.pattern.copy()
 
-        # Checks if it's a pawn and if it has moved, if so gives it its start moves
-        if isinstance(piece, Pawn) and not piece.haveMoved:
-            pattern += piece.init_pattern
+        # Checks if piece is a pawn
+        if isinstance(piece, Pawn):
+            
+            # Check if pawn is allowed to make double start
+            if not piece.haveMoved:
+                new_pattern = (pattern[0] + piece.init_pattern[0]).copy()
+                pattern = [new_pattern]
+            
+            # Checks if an opposing pawn is to the left of pawn, and if en passant is allowed
+            if isinstance(self.board[piece_pos - 1], Pawn):
+                if self.board[piece_pos - 1].en_passant:
+                    available_moves.append(piece_pos + piece.attack_pattern[0][0])
+                    # board[piece_pos + piece.attack_pattern[0][0]] = "#"
+
+            # # Checks if an opposing pawn is to the right of pawn, and if en passant is allowed
+            if isinstance(self.board[piece_pos + 1], Pawn):
+                if self.board[piece_pos + 1].en_passant:
+                    available_moves.append(piece_pos + piece.attack_pattern[0][1])
+                    # board[piece_pos + piece.attack_pattern[0][1]] = "#"
+
 
         # Iterate through every direction in patterns
         for dir in pattern:
@@ -91,10 +109,10 @@ class Board():
                 if piece.symbol == "N" and abs(piece_pos % 8 - total % 8) > 2:
                     continue
 
-                # Breaks if direction hits another piece, and marks enemy piece as 'X' 
+                # Breaks if direction hits another piece, and marks enemy piece as 'X'
                 if copy_board[total] != None:
-                    if copy_board[total].color != piece.color:
-                        board[total] = "X"
+                    if copy_board[total].color != piece.color and not isinstance(piece, Pawn):
+                        # board[total] = "X"
                         available_moves.append(total)
                     break
 
@@ -108,19 +126,19 @@ class Board():
                     break
 
                 # Sets a '#' for every available move
-                board[total] = "#"
+                # board[total] = "#"
                 available_moves.append(total)
 
         # Sets selected piece into its position on the board
-        board[piece_pos] = piece
+        # board[piece_pos] = piece
 
         # Display all the current available moves
         # self.display(board)
 
         return available_moves
 
-    def is_move_legal(self, from_pos, to_pos):
-        
+    def is_move_legal(self, from_pos: int, to_pos: int):
+
         # Determine whos king to look for and choose enemy piece set
         symbol = "K" if self.turn else "k"
         enemy_pieces = self.blacks if self.turn else self.whites
@@ -140,32 +158,32 @@ class Board():
             return False
 
         king_pos = king_pos[0]
-        
+
         # Iterate through every enemy move and if an enemy piece can kill king return 'illegal'
         for spot in enemy_pieces:
             if king_pos in self.get_piece_moves(spot, examine_board):
                 return False
-        
+
         # If no move could kill the king, return 'legal'
         return True
 
-    def get_all_legal_moves_for_pos(self, pos):
-        
+    def get_all_legal_moves_for_pos(self, pos: int):
+
         # Initiate a list for all legal moves for piece
         legal_moves = []
 
         # Get all psuedo legal moves
         piece_moves = self.get_piece_moves(pos)
-        
+
         # Iterate through every move and remove illegal mvoes
         for move in piece_moves:
             if self.is_move_legal(pos, move):
                 legal_moves.append(move)
-        
+
         return legal_moves
 
     def is_player_checkmate(self):
-        
+
         # Select current player piece set
         player_pieces = self.whites if self.turn else self.blacks
 
@@ -176,22 +194,31 @@ class Board():
             # If a legal move was found, return 'not checkmate'
             if len(moves) > 0:
                 return False
-        
+
         # If there were found no legal moves in piece set reutrn 'checkmate'
         return True
 
-    def make_move(self, from_pos, to_pos):
-        
+    def make_move(self, from_pos: int, to_pos: int):
+
         # check if the position which the piece is moving to, is already occupied
         if self.board[to_pos] is None:
-            message = "" 
-        else: 
+            message = ""
+        else:
             message = f" and killed {self.board[to_pos]}"
-        
+
         # Print message for the move
-        print(f"Moved {self.int_to_pos(from_pos)} to {self.int_to_pos(to_pos)}{message}")
-            
-        # Makes sure piece lists are up-to-date
+        print(
+            f"Moved {self.int_to_pos(from_pos)} to {self.int_to_pos(to_pos)}{message}")
+
+        # Marks pawn as able to be killed with 'en passant'
+        if isinstance(self.board[from_pos], Pawn):
+            piece = self.board[from_pos]
+
+            # Makes sure piece moved two files and have not moved before
+            if (to_pos - from_pos) in piece.init_pattern[0] and not piece.haveMoved:
+                piece.en_passant = True
+
+        # Makes sure player piece lists are up-to-date
         if self.turn:
             self.whites.remove(from_pos)
             self.whites.append(to_pos)
@@ -203,8 +230,9 @@ class Board():
             if self.board[to_pos] is not None:
                 self.whites.remove(to_pos)
 
-        
-        
+        # Makes sure piece is marked as moved
+        self.board[from_pos].haveMoved = True
+
         # Move piece from 'from_pos' to 'to_pos' and leave 'from_pos' with None
         self.board[to_pos] = self.board[from_pos]
         self.board[from_pos] = None
@@ -290,99 +318,5 @@ class Board():
         # Prints out bottom row of characters A-H overlined
         print(u"  \u203EA\u0305\u203EB\u0305\u203EC\u0305\u203ED\u0305\u203EE\u0305\u203EF\u0305\u203EG\u0305\u203EH\u0305\u203E")
 
-def max_move(num):
-    return [num*(n+1) for n in range(7)]
 
 
-class _Piece:
-    symbol = None
-    pattern = None
-    haveMoved = False
-    Color = None
-
-    def __init__(self, symbol) -> None:
-        self.symbol = symbol
-        self.color = "white" if symbol.isupper() else "black"
-        if symbol.lower() == "p":
-            self.pattern = self.pattern[symbol]
-            self.init_pattern = self.init_pattern[symbol]
-            self.attack_pattern = self.attack_pattern[symbol]
-
-    def __str__(self) -> str:
-        return self.symbol
-
-
-class King(_Piece):
-    symbol = "K"
-    pattern = [
-        [-8],  # Top
-        [-7],  # Top Right
-        [-1],  # Right
-        [1],  # Down Right
-        [7],  # Down
-        [8],  # Down Left
-        [9],  # Left
-        [-9],  # Top Left
-    ]
-
-
-class Queen(_Piece):
-    symbol = "Q"
-    pattern = [
-        max_move(-8),  # Top
-        max_move(-7),  # Top Right
-        max_move(-1),  # Right
-        max_move(1),  # Down Right
-        max_move(7),  # Down
-        max_move(8),  # Down Left
-        max_move(9),  # Left
-        max_move(-9)  # Top Left
-    ]
-
-
-class Bishop(_Piece):
-    symbol = "B"
-    pattern = [
-        max_move(-9),  # Top Left
-        max_move(-7),  # Top Right
-        max_move(7),  # Down Left
-        max_move(9)   # Down Right
-    ]
-
-
-class Knight(_Piece):
-    symbol = "N"
-    pattern = [
-        [-17, -15],  # Top
-        [-6, 10],  # Right
-        [15, 17],   # Down
-        [-10, 6],   # Left
-    ]
-
-
-class Rook(_Piece):
-    symbol = "R"
-    pattern = [
-        max_move(-8),  # Top
-        max_move(1),  # Right
-        max_move(8),  # Down
-        max_move(-1),  # Left
-    ]
-
-
-class Pawn(_Piece):
-    symbol = "P"
-    pattern = {
-        "P": [[-8]],
-        "p": [[8]]
-    }
-
-    init_pattern = {
-        "P": [[-16]],
-        "p": [[16]]
-    }
-
-    attack_pattern = {
-        "P": [[-7, -9]],
-        "p": [[7, 9]]
-    }

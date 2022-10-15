@@ -1,4 +1,7 @@
+from time import sleep
+from ai import ArtificialChessOpponent
 from chess import Board
+from pieces import Pawn
 
 
 
@@ -34,11 +37,17 @@ def main():
     # board = Board("rnbqkbnr/ppppp2p/8/5ppQ/3PP3/8/PPP2PPP/RNB1KBNR")
     
     player_color = None
+    opponent: ArtificialChessOpponent
     while player_color is None:
         player_color = input("Choose a color, white or black: ")
         
         if player_color.lower() != "white" and player_color.lower() != "black":
             player_color = None
+        else:
+            player_color = True if player_color == "white" else False
+        
+    opponent = ArtificialChessOpponent(color="black" if player_color else "white")
+    player = ArtificialChessOpponent(color="white" if player_color else "black")
 
 
     board = Board()
@@ -46,18 +55,27 @@ def main():
 
     while not board.is_player_checkmate():
         
-        print_turn(board)
-        
-        piece, moves = select_a_piece(board)
-
-        while not select_move(board, piece, moves):       
+        if board.turn == player_color:
             piece, moves = select_a_piece(board)
 
-        
-        board.turn = not board.turn
+            while not select_move(board, piece, moves):       
+                piece, moves = select_a_piece(board)
 
+            # player.random_move(board)
+        
+        else:
+            # opponent.random_move(board)
+
+            piece, moves = select_a_piece(board)
+
+            while not select_move(board, piece, moves):       
+                piece, moves = select_a_piece(board)
+        
+        sleep(0.1)
+        board.turn = not board.turn
         board.display()
     
+    # Print out the winner
     winner = "Blacks" if board.turn else "Whites"
 
     print(f"The winner is {winner}")
@@ -110,6 +128,9 @@ def display_options(board: Board, selected: str):
 
     # Retrieve the numerical position for selected piece
     numerical_pos = board.select_piece(selected)
+    
+    # Deciedes whether to check for en passant move or not
+    check_en_passant = isinstance(board.board[numerical_pos], Pawn)
 
     # Get all legal moves for selected piece
     moves = board.get_all_legal_moves_for_pos(numerical_pos)
@@ -119,6 +140,13 @@ def display_options(board: Board, selected: str):
     
     # Change copy board with all legal moves with '#' if space is not occupied and 'X' if possibility to kill an enemy
     for move in moves:
+
+        if check_en_passant:
+            if isinstance(copy[numerical_pos - 1], Pawn) or isinstance(copy[numerical_pos + 1], Pawn):
+                if (move - numerical_pos) in copy[numerical_pos].attack_pattern[0]:
+                    side = 1 if (move - numerical_pos) > 0 else -1
+                    copy[side + numerical_pos] = "!"
+
         if copy[move] is None:
             copy[move] = "#"
         else:
@@ -131,12 +159,14 @@ def display_options(board: Board, selected: str):
     return moves
 
 
-def select_move(board: Board, piece, moves):
-
-    print(piece, moves)
+def select_move(board: Board, piece: int, moves: list[int]):
 
     # Initiate move as None
     move = None
+
+    if len(moves) == 0:
+        print(f"{board.board[piece]} at {board.int_to_pos(piece)} does not have any available moves")
+        return False
 
     # Select a valid move, and detects if operation is canceled
     while board.select_piece(move) not in moves:
