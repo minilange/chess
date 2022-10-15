@@ -1,5 +1,6 @@
 import math
 from decimal import DivisionByZero
+from turtle import pos
 
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
 
@@ -200,17 +201,39 @@ class Board():
 
     def make_move(self, from_pos: int, to_pos: int):
 
+        en_passant_move = 0
+
         # check if the position which the piece is moving to, is already occupied
-        if self.board[to_pos] is None:
-            message = ""
-        else:
+        if self.board[to_pos] is not None:
             message = f" and killed {self.board[to_pos]}"
 
+        # Checks if attacking piece is a Pawn and is trying to do en passant
+        elif isinstance(self.board[from_pos], Pawn):
+            
+            # Check if white performed en passant
+            if isinstance(self.board[to_pos - 8], Pawn) and self.board[to_pos - 8].en_passant:
+                message = f" and killed {self.board[to_pos - 8]}"
+                en_passant_move = to_pos - 8
+
+            # Check if black performed en passant
+            elif isinstance(self.board[to_pos + 8], Pawn)and self.board[to_pos + 8].en_passant:
+                message = f" and killed {self.board[to_pos + 8]}"
+                en_passant_move = to_pos + 8
+
+            else:
+                # No added message if not piece was killed
+                message= f""
+
+        else:
+            # No added message if not piece was killed
+            message = ""
+    
         # Print message for the move
         print(
             f"Moved {self.int_to_pos(from_pos)} to {self.int_to_pos(to_pos)}{message}")
 
         # Marks pawn as able to be killed with 'en passant'
+        # Handles all special cases there is for a pawn
         if isinstance(self.board[from_pos], Pawn):
             piece = self.board[from_pos]
 
@@ -219,16 +242,26 @@ class Board():
                 piece.en_passant = True
 
         # Makes sure player piece lists are up-to-date
-        if self.turn:
-            self.whites.remove(from_pos)
-            self.whites.append(to_pos)
-            if self.board[to_pos] is not None:
-                self.blacks.remove(to_pos)
-        else:
-            self.blacks.remove(from_pos)
-            self.blacks.append(to_pos)
-            if self.board[to_pos] is not None:
-                self.whites.remove(to_pos)
+        if self.turn: # Whites turn
+            player = self.whites
+            opponent = self.blacks
+
+        else: # Blacks turn
+            player = self.blacks
+            opponent = self.whites
+        
+        # Updates players piece list
+        player.remove(from_pos)
+        player.append(to_pos)
+
+        # Updates opponents piece list if a piece was lost
+        if self.board[to_pos] is not None:
+            opponent.remove(to_pos)
+        
+        # Updates opponents piece list if en passant was performed
+        if en_passant_move != 0:
+            opponent.remove(en_passant_move)
+            
 
         # Makes sure piece is marked as moved
         self.board[from_pos].haveMoved = True
@@ -236,6 +269,20 @@ class Board():
         # Move piece from 'from_pos' to 'to_pos' and leave 'from_pos' with None
         self.board[to_pos] = self.board[from_pos]
         self.board[from_pos] = None
+
+        # Removes piece if piece was killed with en passant
+        if en_passant_move != 0:
+            self.board[en_passant_move] = None
+
+    def end_turn(self):
+        self.turn = not self.turn
+
+        pieces = self.whites if self.turn else self.blacks
+
+        for piece_pos in pieces:
+            if isinstance(self.board[piece_pos], Pawn):
+                self.board[piece_pos].en_passant = False
+
 
     def load_fen_board(self, fen_string: str):
 

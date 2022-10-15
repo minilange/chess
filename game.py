@@ -72,7 +72,7 @@ def main():
                 piece, moves = select_a_piece(board)
         
         sleep(0.1)
-        board.turn = not board.turn
+        board.end_turn()
         board.display()
     
     # Print out the winner
