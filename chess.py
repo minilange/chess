@@ -4,6 +4,12 @@ from turtle import pos
 
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
 
+
+def at_border(total, pos, offset):
+    return ((total % 8 == 7 and ((pos % 8 == 0 and math.floor(total / 8) != math.floor(pos / 8)) or offset + pos % 8 == 0)) or
+            (total % 8 == 0 and ((pos % 8 == 7 and math.floor(total / 8) != math.floor(pos / 8)) or offset + pos % 8 == 7)))
+
+
 class Board():
 
     #
@@ -71,7 +77,7 @@ class Board():
 
         # Checks if piece is a pawn
         if isinstance(piece, Pawn):
-            
+
             # Check if pawn is allowed to make double start
             if not piece.haveMoved:
                 new_pattern = (pattern[0] + piece.init_pattern[0]).copy()
@@ -87,17 +93,18 @@ class Board():
                 # Checks if there is an piece on attack spot
                 if self.board[piece_pos + move] != None and self.board[piece_pos + move].color != piece.color:
                     available_moves.append(piece_pos + move)
-            
+
             # Checks if an opposing pawn is to the left of pawn, and if en passant is allowed
             if isinstance(self.board[piece_pos - 1], Pawn):
                 if self.board[piece_pos - 1].en_passant:
-                    available_moves.append(piece_pos + piece.attack_pattern[0][0])
-                    
+                    available_moves.append(
+                        piece_pos + piece.attack_pattern[0][0])
+
             # # Checks if an opposing pawn is to the right of pawn, and if en passant is allowed
             if isinstance(self.board[piece_pos + 1], Pawn):
                 if self.board[piece_pos + 1].en_passant:
-                    available_moves.append(piece_pos + piece.attack_pattern[0][1])
-                
+                    available_moves.append(
+                        piece_pos + piece.attack_pattern[0][1])
 
         # Iterate through every direction in patterns
         for dir in pattern:
@@ -116,7 +123,7 @@ class Board():
                     break
 
                 # If piece is a Knight, make special check for out of bounds on sides
-                if piece.symbol == "N" and abs(piece_pos % 8 - total % 8) > 2:
+                if isinstance(piece, Knight) and abs(piece_pos % 8 - total % 8) > 2:
                     continue
 
                 # Breaks if direction hits another piece, and marks enemy piece as 'X'
@@ -131,8 +138,7 @@ class Board():
                     idx_offset = 0
 
                 # Checks if move is exceeding the side border, and breaks if so
-                if ((total % 8 == 7 and (dir[idx + idx_offset] + piece_pos) % 8 == 0) or
-                        (total % 8 == 0 and (dir[idx + idx_offset] + piece_pos) % 8 == 7)) and piece.symbol != "N":
+                if at_border(total, piece_pos, dir[idx + idx_offset]) and not isinstance(piece, Knight):
                     break
 
                 # Sets a '#' for every available move
@@ -218,25 +224,25 @@ class Board():
 
         # Checks if attacking piece is a Pawn and is trying to do en passant
         elif isinstance(self.board[from_pos], Pawn):
-            
+
             # Check if white performed en passant
             if isinstance(self.board[to_pos - 8], Pawn) and self.board[to_pos - 8].en_passant:
                 message = f" and killed {self.board[to_pos - 8]}"
                 en_passant_move = to_pos - 8
 
             # Check if black performed en passant
-            elif isinstance(self.board[to_pos + 8], Pawn)and self.board[to_pos + 8].en_passant:
+            elif isinstance(self.board[to_pos + 8], Pawn) and self.board[to_pos + 8].en_passant:
                 message = f" and killed {self.board[to_pos + 8]}"
                 en_passant_move = to_pos + 8
 
             else:
                 # No added message if not piece was killed
-                message= f""
+                message = f""
 
         else:
             # No added message if not piece was killed
             message = ""
-    
+
         # Print message for the move
         print(
             f"Moved {self.int_to_pos(from_pos)} to {self.int_to_pos(to_pos)}{message}")
@@ -251,14 +257,14 @@ class Board():
                 piece.en_passant = True
 
         # Makes sure player piece lists are up-to-date
-        if self.turn: # Whites turn
+        if self.turn:  # Whites turn
             player = self.whites
             opponent = self.blacks
 
-        else: # Blacks turn
+        else:  # Blacks turn
             player = self.blacks
             opponent = self.whites
-        
+
         # Updates players piece list
         player.remove(from_pos)
         player.append(to_pos)
@@ -266,11 +272,10 @@ class Board():
         # Updates opponents piece list if a piece was lost
         if self.board[to_pos] is not None:
             opponent.remove(to_pos)
-        
+
         # Updates opponents piece list if en passant was performed
         if en_passant_move != 0:
             opponent.remove(en_passant_move)
-
 
         # Makes sure piece is marked as moved
         self.board[from_pos].haveMoved = True
@@ -291,7 +296,6 @@ class Board():
         for piece_pos in pieces:
             if isinstance(self.board[piece_pos], Pawn):
                 self.board[piece_pos].en_passant = False
-
 
     def load_fen_board(self, fen_string: str):
 
@@ -373,6 +377,3 @@ class Board():
 
         # Prints out bottom row of characters A-H overlined
         print(u"  \u203EA\u0305\u203EB\u0305\u203EC\u0305\u203ED\u0305\u203EE\u0305\u203EF\u0305\u203EG\u0305\u203EH\u0305\u203E")
-
-
-
