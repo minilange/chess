@@ -5,7 +5,7 @@ from turtle import pos
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
 
 
-def at_border(total, pos, offset):
+def outside_border(total, pos, offset):
     return ((total % 8 == 7 and ((pos % 8 == 0 and math.floor(total / 8) != math.floor(pos / 8)) or offset + pos % 8 == 0)) or
             (total % 8 == 0 and ((pos % 8 == 7 and math.floor(total / 8) != math.floor(pos / 8)) or offset + pos % 8 == 7)))
 
@@ -79,7 +79,7 @@ class Board():
         if isinstance(piece, Pawn):
 
             # Check if pawn is allowed to make double start
-            if not piece.haveMoved:
+            if not piece.have_moved:
                 new_pattern = (pattern[0] + piece.init_pattern[0]).copy()
                 pattern = [new_pattern]
 
@@ -105,8 +105,32 @@ class Board():
                 if self.board[piece_pos + 1].en_passant:
                     available_moves.append(
                         piece_pos + piece.attack_pattern[0][1])
+        
+        # Check if piece is the king and have not moved, for castling 
+        if isinstance(piece, King) and not piece.have_moved:
 
-        # Iterate through every direction in patterns
+            # Select the piece, if any, at king's side rook position
+            r_ks = self.board[piece_pos + 2]
+
+            # Check if selected piece is a rook, and have not moved
+            if isinstance(r_ks, Rook) and not r_ks.have_moved:
+
+                # Gets the pieces between king and rook on king side
+                empty_space_ks = [self.board[piece_pos + i + 1] for i in range(2)]
+
+                # Checks if all positions between king and rook are empty
+                if empty_space_ks.count(None) == 2:
+                    available_moves.append("ks")
+
+            r_qs = self.board[piece_pos - 4]
+            if isinstance(r_qs, Rook) and not r_qs.have_moved:
+
+                empty_space_qs = [self.board[piece_pos - (i + 1)] for i in range(3)]
+
+                if empty_space_qs.count(None) == 3:
+                    available_moves.append("qs")
+
+                # Iterate through every direction in patterns
         for dir in pattern:
 
             # Iterate through every move in direction
@@ -138,7 +162,7 @@ class Board():
                     idx_offset = 0
 
                 # Checks if move is exceeding the side border, and breaks if so
-                if at_border(total, piece_pos, dir[idx + idx_offset]) and not isinstance(piece, Knight):
+                if outside_border(total, piece_pos, dir[idx + idx_offset]) and not isinstance(piece, Knight):
                     break
 
                 # Sets a '#' for every available move
@@ -253,7 +277,7 @@ class Board():
             piece = self.board[from_pos]
 
             # Makes sure piece moved two files and have not moved before
-            if (to_pos - from_pos) in piece.init_pattern[0] and not piece.haveMoved:
+            if (to_pos - from_pos) in piece.init_pattern[0] and not piece.have_moved:
                 piece.en_passant = True
 
         # Makes sure player piece lists are up-to-date
@@ -278,7 +302,7 @@ class Board():
             opponent.remove(en_passant_move)
 
         # Makes sure piece is marked as moved
-        self.board[from_pos].haveMoved = True
+        self.board[from_pos].have_moved = True
 
         # Move piece from 'from_pos' to 'to_pos' and leave 'from_pos' with None
         self.board[to_pos] = self.board[from_pos]

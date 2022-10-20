@@ -45,7 +45,7 @@ def main():
     opponent = ACO(color="black" if player_color else "white")
     player = ACO(color="white" if player_color else "black")
 
-    board = Board("rnbqkbnr/pppppppp/8/8/8/r7/PPPPPPPP/RNBQKBNR")
+    board = Board("rnbqkbnr/pppppppp/8/8/8/p7/PPPPPPPP/RNBQK2R")
     board.display()
 
     while not board.is_player_checkmate():

@@ -6,7 +6,7 @@ def max_move(num):
 class _Piece:
     symbol = None
     pattern = None
-    haveMoved = False
+    have_moved = False
     Color = None
 
     def __init__(self, symbol) -> None:
@@ -27,9 +27,9 @@ class King(_Piece):
         [-8],  # Top
         [-7],  # Top Right
         [-1],  # Right
-        [1],   # Down Right
-        [7],   # Down
-        [8],   # Down Left
+        [1],   # Bottom Right
+        [7],   # Bottom
+        [8],   # Bottom Left
         [9],   # Left
         [-9],  # Top Left
     ]
@@ -41,9 +41,9 @@ class Queen(_Piece):
         max_move(-8),  # Top
         max_move(-7),  # Top Right
         max_move(-1),  # Right
-        max_move(1),   # Down Right
-        max_move(7),   # Down
-        max_move(8),   # Down Left
+        max_move(1),   # Bottom Right
+        max_move(7),   # Bottom
+        max_move(8),   # Bottom Left
         max_move(9),   # Left
         max_move(-9)   # Top Left
     ]
@@ -54,8 +54,8 @@ class Bishop(_Piece):
     pattern = [
         max_move(-9),  # Top Left
         max_move(-7),  # Top Right
-        max_move(7),   # Down Left
-        max_move(9)    # Down Right
+        max_move(7),   # Bottom Left
+        max_move(9)    # Bottom Right
     ]
 
 
@@ -63,9 +63,9 @@ class Knight(_Piece):
     symbol = "N"
     pattern = [
         [-17, -15],  # Top
-        [-6, 10],   # Right
-        [15, 17],   # Down
-        [-10, 6],   # Left
+        [-6, 10],    # Right
+        [15, 17],    # Down
+        [-10, 6],    # Left
     ]
 
 
@@ -74,7 +74,7 @@ class Rook(_Piece):
     pattern = [
         max_move(-8),  # Top
         max_move(1),   # Right
-        max_move(8),   # Down
+        max_move(8),   # Bottom
         max_move(-1),  # Left
     ]
 
