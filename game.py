@@ -1,3 +1,4 @@
+import sys
 from time import sleep
 from ai import ArtificialChessOpponent as ACO
 from chess import Board
@@ -45,10 +46,11 @@ def main():
     opponent = ACO(color="black" if player_color else "white")
     player = ACO(color="white" if player_color else "black")
 
-    board = Board("rnbqkbnr/pppppppp/8/8/8/p7/PPPPPPPP/RNBQK2R")
-    board.display()
+    board = Board("r3kbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR")
 
     while not board.is_player_checkmate():
+    
+        board.display()
 
         if board.turn == player_color:
             piece, moves = select_a_piece(board)
@@ -59,16 +61,15 @@ def main():
             # player.random_move(board)
 
         else:
-            # opponent.random_move(board)
+            opponent.random_move(board)
 
-            piece, moves = select_a_piece(board)
+            # piece, moves = select_a_piece(board)
 
-            while not select_move(board, piece, moves):
-                piece, moves = select_a_piece(board)
+            # while not select_move(board, piece, moves):
+            #     piece, moves = select_a_piece(board)
 
-        sleep(0.1)
+        # sleep(0.1)
         board.end_turn()
-        board.display()
 
     # Print out the winner
     winner = "Blacks" if board.turn else "Whites"
@@ -140,6 +141,7 @@ def display_options(board: Board, selected: str):
         if check_en_passant:
             if isinstance(copy[numerical_pos - 1], Pawn) or isinstance(copy[numerical_pos + 1], Pawn):
                 if (move - numerical_pos) in copy[numerical_pos].attack_pattern[0]:
+
                     side = 1 if (move - numerical_pos) > 0 else -1
                     if copy[numerical_pos + side].en_passant and copy[numerical_pos + side].color != copy[numerical_pos].color:
                         copy[side + numerical_pos] = "!"
@@ -193,4 +195,5 @@ def select_move(board: Board, piece: int, moves: list[int]):
 
 
 if __name__ == "__main__":
+    # sys.setrecursionlimit(20)
     main()

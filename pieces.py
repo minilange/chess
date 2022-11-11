@@ -3,11 +3,11 @@ def max_move(num):
     return [num*(n+1) for n in range(7)]
 
 
-class _Piece:
+class Piece:
     symbol = None
     pattern = None
     have_moved = False
-    Color = None
+    color = None
 
     def __init__(self, symbol) -> None:
         self.symbol = symbol
@@ -20,9 +20,9 @@ class _Piece:
     def __str__(self) -> str:
         return self.symbol
 
-
-class King(_Piece):
+class King(Piece):
     symbol = "K"
+    caslte = False
     pattern = [
         [-8],  # Top
         [-7],  # Top Right
@@ -35,7 +35,7 @@ class King(_Piece):
     ]
 
 
-class Queen(_Piece):
+class Queen(Piece):
     symbol = "Q"
     pattern = [
         max_move(-8),  # Top
@@ -49,7 +49,7 @@ class Queen(_Piece):
     ]
 
 
-class Bishop(_Piece):
+class Bishop(Piece):
     symbol = "B"
     pattern = [
         max_move(-9),  # Top Left
@@ -59,7 +59,7 @@ class Bishop(_Piece):
     ]
 
 
-class Knight(_Piece):
+class Knight(Piece):
     symbol = "N"
     pattern = [
         [-17, -15],  # Top
@@ -69,7 +69,7 @@ class Knight(_Piece):
     ]
 
 
-class Rook(_Piece):
+class Rook(Piece):
     symbol = "R"
     pattern = [
         max_move(-8),  # Top
@@ -79,7 +79,7 @@ class Rook(_Piece):
     ]
 
 
-class Pawn(_Piece):
+class Pawn(Piece):
     symbol = "P"
     en_passant = False
 

@@ -21,11 +21,11 @@ class ArtificialChessOpponent():
         pieces = self.get_all_pieces(board)
 
         piece = random.choice(pieces)
-        options = board.get_piece_moves(piece)
+        options = board.get_all_legal_moves_for_pos(piece)
 
         while len(options) == 0:
             piece = random.choice(pieces)
-            options = board.get_piece_moves(piece)
+            options = board.get_all_legal_moves_for_pos(piece)
         
         move = random.choice(options)
 
