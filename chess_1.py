@@ -7,7 +7,9 @@ from pieces import Bishop, King, Knight, Pawn, Piece, Queen, Rook
 
 def outside_border(total, pos, offset):
     return ((total % 8 == 7 and ((pos % 8 == 0 and math.floor(total / 8) != math.floor(pos / 8)) or offset + pos % 8 == 0)) or
-            (total % 8 == 0 and ((pos % 8 == 7 and math.floor(total / 8) != math.floor(pos / 8)) or offset + pos % 8 == 7)))
+            (total % 8 == 0 and ((pos % 8 == 7 and math.floor(total / 8) != math.floor(pos / 8)) or offset + pos % 8 == 7)) or
+            (math.floor(total / 8) == math.floor((offset + pos) / 8) and abs(total - (offset + pos)) > 1) or
+            (math.floor(total / 8) == math.floor((offset + pos) / 8) + 2 or math.floor(total / 8) == math.floor((offset + pos) / 8) - 2))
 
 
 class Board():
@@ -49,14 +51,14 @@ class Board():
         pattern = piece.pattern
 
         # Checks if piece is a pawn
-        # if isinstance(piece, Pawn):
+        if isinstance(piece, Pawn):
 
-        #     # Check if pawn is allowed to make double start
-        #     if not piece.have_moved:
-        #         new_pattern = (pattern[0] + piece.init_pattern[0]).copy()
-        #         pattern = [new_pattern]
+            # Check if pawn is allowed to make double start
+            if not piece.have_moved:
+                new_pattern = (pattern[0] + piece.init_pattern[0]).copy()
+                pattern = [new_pattern]
 
-        #     possible_moves += self.get_en_passant_moves(piece_pos, board)
+            possible_moves += self.get_en_passant_moves(piece_pos, board)
 
         # Check if piece is the king and have not moved, for castling
         # if isinstance(piece, King) and not piece.have_moved:
@@ -117,7 +119,6 @@ class Board():
 
         all_moves = []
         for piece in enemy_pieces:
-            print(piece)
             all_moves += self.get_all_piece_moves(piece, copy_board)
 
         all_moves = list(set(all_moves))
@@ -147,29 +148,44 @@ class Board():
 
     def get_all_legal_moves_for_pos(self, piece_pos: int):
 
-        pins, pin_pos = self.num_king_pinned(self.board)
+        pins, pin_pos = self.num_king_pinned()
 
         if pins == 2:
-            if not isinstance(self.board[piece_pos], King):
-                return []
+            if isinstance(self.board[piece_pos], King):
+
+                king_moves = self.get_king_moves(piece_pos)
+
+                return king_moves
             else:
-                # TODO
-                psudeo_moves = self.get_all_piece_moves(piece_pos, self.board)
-
-                for move in pin_pos:
-                    if move in psudeo_moves:
-                        psudeo_moves.remove(move)
-
-                return psudeo_moves
+                return []
 
         elif pins == 1:
-            # TODO
+            if isinstance(self.board[piece_pos], King):
 
-            return
+                king_moves = self.get_king_moves(piece_pos)
+
+                return king_moves
+
+            else:
+
+                piece_moves = self.get_all_piece_moves(piece_pos, self.board)
+                moves = []
+
+                for move in piece_moves:
+                    mask = self.get_opponent_move_mask()
+
+                    if move in mask:
+                        continue
+
+                    moves.append(move)
+
+                return moves
 
         else:
-            # TODO
-            return
+
+            moves = self.get_all_piece_moves(piece_pos, self.board)
+
+            return moves
 
         return
 
@@ -178,6 +194,17 @@ class Board():
         for idx, spot in enumerate(board):
             if spot is not None and isinstance(spot, King) and spot.color == color:
                 return idx
+
+    def get_king_moves(self, piece_pos: int):
+
+        psudeo_moves = self.get_all_piece_moves(piece_pos, self.board)
+        enemy_mask = self.get_opponent_move_mask()
+
+        for move in psudeo_moves.copy():
+            if move in enemy_mask:
+                psudeo_moves.remove(move)
+
+        return psudeo_moves
 
     def num_king_pinned(self):
 
@@ -204,7 +231,7 @@ class Board():
             for move in moves:
                 if board[move] is not None and board[move].color != color:
 
-                    if type(board[move]) == type(piece) or type(board[move]) == Queen:
+                    if type(board[move]) == type(piece) or (type(board[move]) == Queen and type(piece) != Knight):
                         num_pinned += 1
                         pin_pos.append(move)
 
@@ -231,13 +258,12 @@ class Board():
         if isinstance(board[piece_pos - 1], Pawn):
             if board[piece_pos - 1].en_passant:
                 moves.append(
-                    piece_pos + piece.attack_pattern[0][0])
+                    (piece_pos + piece.attack_pattern[0][0]))
 
         # # Checks if an opposing pawn is to the right of pawn, and if en passant is allowed
         if isinstance(board[piece_pos + 1], Pawn):
             if board[piece_pos + 1].en_passant:
-                moves.append(
-                    piece_pos + piece.attack_pattern[0][1])
+                moves.append((piece_pos + piece.attack_pattern[0][1]))
 
         return moves
 
