@@ -1,7 +1,8 @@
 import sys
-from time import sleep
+import math
+from time import sleep, time
 from ai import ArtificialChessOpponent as ACO
-from chess import Board
+from chess_1 import Board
 from pieces import Pawn
 
 
@@ -34,7 +35,7 @@ def main():
     # board = Board("rnbqkbnr/ppppp2p/PPP2PPP/RNB1KBNR")
     # board = Board("rnbqkbnr/ppppp2p/8/5ppQ/3PP3/8/PPP2PPP/RNB1KBNR")
 
-    player_color = None
+    player_color = True
     while player_color is None:
         player_color = input("Choose a color, white or black: ")
 
@@ -46,19 +47,20 @@ def main():
     opponent = ACO(color="black" if player_color else "white")
     player = ACO(color="white" if player_color else "black")
 
-    board = Board("r3kbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR")
+    board = Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR")
+    # board = Board()
 
-    while not board.is_player_checkmate():
-    
+    while not board.is_game_over():
+
         board.display()
 
         if board.turn == player_color:
-            piece, moves = select_a_piece(board)
+            # piece, moves = select_a_piece(board)
 
-            while not select_move(board, piece, moves):
-                piece, moves = select_a_piece(board)
+            # while not select_move(board, piece, moves):
+            #     piece, moves = select_a_piece(board)
 
-            # player.random_move(board)
+            player.random_move(board)
 
         else:
             opponent.random_move(board)
@@ -72,9 +74,18 @@ def main():
         board.end_turn()
 
     # Print out the winner
-    winner = "Blacks" if board.turn else "Whites"
+    board.display()
 
-    print(f"The winner is {winner}")
+    if board.end_game_reason == "Checkmate":
+        winner = "Blacks" if board.turn else "Whites"
+        print(f"The winner is {winner}")
+        
+    else:
+        print(f"Game ended in a draw by {board.end_game_reason}")
+
+
+
+
 
 
 def print_turn(board: Board):
@@ -104,7 +115,8 @@ def select_a_piece(board: Board):
             move = None
 
         # Select current players piece set
-        piece_set = board.whites if board.turn else board.blacks
+        whites, blacks = board.get_board_pieces(board.board)
+        piece_set = whites if board.turn else blacks
 
         # Retrieve selected postion as a numerical position
         num_move = board.select_piece(move)
@@ -189,11 +201,37 @@ def select_move(board: Board, piece: int, moves: list[int]):
     num_move = board.select_piece(move)
 
     # Make the selected move on the board
-    board.make_move(piece, num_move)
+    board.make_move(piece, num_move, board.board)
+
+    if isinstance(board.board[num_move], Pawn):
+        pawn = board.board[num_move]
+
+        if (pawn.color == "white" and 8 - math.floor(num_move / 8) == 8) or (pawn.color == "black" and 8 - math.floor(num_move / 8) == 0):
+            choose_promotion(num_move, board)
 
     return True
 
 
+def choose_promotion(piece_pos: int, board: Board):
+
+    board.display()
+    new_piece = input("Please select promition: ")
+
+    while new_piece.lower() not in ["q", "r", "b", "n"]:
+        print("Select either q, r, b or n")
+        new_piece = input("Please select promition: ")
+
+    board.promote_pawn(piece_pos, new_piece)
+
+    return
+
+
 if __name__ == "__main__":
     # sys.setrecursionlimit(20)
-    main()
+
+
+    init_time = time()
+    for i in range(100):
+        main()
+    
+    print(time() - init_time)

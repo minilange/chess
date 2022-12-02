@@ -1,6 +1,8 @@
+import math
 import random
+from pieces import *
 
-from chess import Board
+from chess_1 import Board
 
 
 class ArtificialChessOpponent():
@@ -12,7 +14,10 @@ class ArtificialChessOpponent():
     
 
     def get_all_pieces(self, board: Board):
-        pieces = board.whites if self.color == "white" else board.blacks
+
+        whites, blacks = board.get_board_pieces(board.board)
+
+        pieces = whites if self.color == "white" else blacks
         return pieces
 
 
@@ -29,8 +34,11 @@ class ArtificialChessOpponent():
         
         move = random.choice(options)
 
-        board.make_move(piece, move)
-        
+        board.make_move(piece, move, board.board)
+
+        if isinstance(board.board[move], Pawn):
+            pawn = board.board[move]
+            if (pawn.color == "white" and 8 - math.floor(move / 8) == 8) or (pawn.color == "black" and 8 - math.floor(move / 8) == 1):
+                board.promote_pawn(move, random.choice(["q", "r", "b", "n"]))
 
         return
-

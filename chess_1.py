@@ -6,15 +6,24 @@ from pieces import Bishop, King, Knight, Pawn, Piece, Queen, Rook
 
 
 def outside_border(total, pos, offset):
-    return ((total % 8 == 7 and ((pos % 8 == 0 and math.floor(total / 8) != math.floor(pos / 8)) or offset + pos % 8 == 0)) or
-            (total % 8 == 0 and ((pos % 8 == 7 and math.floor(total / 8) != math.floor(pos / 8)) or offset + pos % 8 == 7)) or
-            (math.floor(total / 8) == math.floor((offset + pos) / 8) and abs(total - (offset + pos)) > 1) or
-            (math.floor(total / 8) == math.floor((offset + pos) / 8) + 2 or math.floor(total / 8) == math.floor((offset + pos) / 8) - 2))
+    # Boolean expression of hell - DO NOT TOUCH
+    outside = (
+        (total % 8 == 7 and ((pos % 8 == 0 and math.floor(total / 8) != math.floor(pos / 8)) or offset + pos % 8 == 0)) or
+        (total % 8 == 0 and ((pos % 8 == 7 and math.floor(total / 8) != math.floor(pos / 8)) or offset + pos % 8 == 7)) or
+        (math.floor(total / 8) == math.floor((offset + pos) / 8) and abs(total - (offset + pos)) > 1) or
+        (math.floor(total / 8) == math.floor((offset + pos) / 8) + 2 or math.floor(total / 8) == math.floor((offset + pos) / 8) - 2) or
+        ((abs(offset + pos - total) > 1 or (abs(offset + pos - total) ==
+         0 and abs(offset) != 1)) and math.floor(total / 8) == math.floor(pos / 8))
+    )
+    return outside
 
 
 class Board():
 
     turn = True
+    end_game_reason = None
+    # reset on pawn move and piece capture, increment every turn end
+    fifty_consecutive_moves = 0
 
     def __init__(self, fen: str = ""):
         self.board_history = []
@@ -42,7 +51,20 @@ class Board():
         except DivisionByZero:
             return "a8"
 
-    def get_all_piece_moves(self, piece_pos: int, board: list[Piece | None]):
+    def sort_piece_func(self, p):
+        p = self.board[p]
+
+        score = {
+            "k": 0,
+            "q": 1,
+            "b": 2,
+            "n": 3,
+            "r": 4,
+            "p": 5
+        }
+        return score[p.symbol.lower()]
+
+    def get_all_piece_moves(self, piece_pos: int, board: list[Piece | None], mask: bool = False):
 
         possible_moves = []
 
@@ -58,11 +80,12 @@ class Board():
                 new_pattern = (pattern[0] + piece.init_pattern[0]).copy()
                 pattern = [new_pattern]
 
-            possible_moves += self.get_en_passant_moves(piece_pos, board)
+            possible_moves += self.get_special_pawn_moves(
+                piece_pos, board, mask)
 
         # Check if piece is the king and have not moved, for castling
-        # if isinstance(piece, King) and not piece.have_moved:
-        #     possible_moves += self.get_castle_moves(piece_pos, board)
+        if isinstance(piece, King) and not piece.have_moved and not mask:
+            possible_moves += self.get_castle_moves(piece_pos, board)
 
         # Iterate through every direction in patterns
         for dir in pattern:
@@ -80,6 +103,14 @@ class Board():
                 if total < 0 or total > 63:
                     break
 
+                if idx == 0:
+                    idx_offset = 0
+
+                # Checks if move is exceeding the side border, and breaks if so
+                # print(total, piece_pos, dir[idx + idx_offset])
+                if outside_border(total, piece_pos, dir[idx + idx_offset]) and not isinstance(piece, Knight):
+                    break
+
                 # If piece is a Knight, make special check for out of bounds on sides
                 if isinstance(piece, Knight) and abs(piece_pos % 8 - total % 8) > 2:
                     continue
@@ -94,22 +125,18 @@ class Board():
                 if idx == 0:
                     idx_offset = 0
 
-                # Checks if move is exceeding the side border, and breaks if so
-                if outside_border(total, piece_pos, dir[idx + idx_offset]) and not isinstance(piece, Knight):
-                    break
-
                 # Adds the me as a possible move
                 possible_moves.append(total)
 
         return possible_moves
 
-    def get_opponent_move_mask(self):
+    def get_opponent_move_mask(self, boad: list[Piece | None]):
 
-        player, oppo = self.get_colors()
+        player, _ = self.get_colors()
 
         king_pos = self.get_king_pos(self.board, player)
 
-        copy_board = deepcopy(self.board)
+        copy_board = deepcopy(boad)
 
         copy_board[king_pos] = None
 
@@ -119,7 +146,7 @@ class Board():
 
         all_moves = []
         for piece in enemy_pieces:
-            all_moves += self.get_all_piece_moves(piece, copy_board)
+            all_moves += self.get_all_piece_moves(piece, copy_board, True)
 
         all_moves = list(set(all_moves))
 
@@ -148,46 +175,45 @@ class Board():
 
     def get_all_legal_moves_for_pos(self, piece_pos: int):
 
-        pins, pin_pos = self.num_king_pinned()
+        pins, _ = self.num_king_pinned(self.board)
+
+        if isinstance(self.board[piece_pos], King):
+
+            king_moves = self.get_king_moves(piece_pos)
+
+            return king_moves
 
         if pins == 2:
-            if isinstance(self.board[piece_pos], King):
-
-                king_moves = self.get_king_moves(piece_pos)
-
-                return king_moves
-            else:
-                return []
+            return []
 
         elif pins == 1:
-            if isinstance(self.board[piece_pos], King):
 
-                king_moves = self.get_king_moves(piece_pos)
+            piece_moves = self.get_all_piece_moves(piece_pos, self.board)
+            moves = []
 
-                return king_moves
-
-            else:
-
-                piece_moves = self.get_all_piece_moves(piece_pos, self.board)
-                moves = []
-
-                for move in piece_moves:
-                    mask = self.get_opponent_move_mask()
-
-                    if move in mask:
-                        continue
-
+            mask = self.get_opponent_move_mask(self.board)
+            for move in piece_moves:
+                if move in mask:
                     moves.append(move)
-
-                return moves
-
+            
+        
         else:
-
             moves = self.get_all_piece_moves(piece_pos, self.board)
+        
+        # removes any move that leaves the king pinned
+        for move in deepcopy(moves):
+            copy_board = deepcopy(self.board)
 
-            return moves
+            copy_board[move] = self.board[piece_pos]
+            copy_board[piece_pos] = None
 
-        return
+            pins, _ = self.num_king_pinned(copy_board)
+
+            if pins > 0:
+                moves.remove(move)
+
+
+        return moves
 
     def get_king_pos(self, board: list[Piece | None], color: str):
 
@@ -198,38 +224,43 @@ class Board():
     def get_king_moves(self, piece_pos: int):
 
         psudeo_moves = self.get_all_piece_moves(piece_pos, self.board)
-        enemy_mask = self.get_opponent_move_mask()
 
-        for move in psudeo_moves.copy():
-            if move in enemy_mask:
+        for move in deepcopy(psudeo_moves):
+            copy_board = deepcopy(self.board)
+            copy_board[move] = None
+            if move in self.get_opponent_move_mask(copy_board):
                 psudeo_moves.remove(move)
 
         return psudeo_moves
 
-    def num_king_pinned(self):
+    def num_king_pinned(self, board: list[Piece | None]):
 
-        board = deepcopy(self.board)
+        board = deepcopy(board)
 
         color = "white" if self.turn else "black"
 
         king = self.get_king_pos(self.board, color)
 
-        pin_pieces = [
-            # Queen(symbol="Q" if self.turn else "q"),
+        pin_checks = [
             Bishop(symbol="B" if self.turn else "b"),
             Knight(symbol="N" if self.turn else "n"),
-            Rook(symbol="R" if self.turn else "r")
+            Rook(symbol="R" if self.turn else "r"),
+            Pawn(symbol="P" if self.turn else "p")
         ]
 
         num_pinned = 0
         pin_pos = []
 
-        for piece in pin_pieces:
+        for piece in pin_checks:
             board[king] = piece
             moves = self.get_all_piece_moves(king, board)
 
+
+            # print(type(piece))
+
             for move in moves:
                 if board[move] is not None and board[move].color != color:
+                    
 
                     if type(board[move]) == type(piece) or (type(board[move]) == Queen and type(piece) != Knight):
                         num_pinned += 1
@@ -237,7 +268,7 @@ class Board():
 
         return num_pinned, pin_pos
 
-    def get_en_passant_moves(self, piece_pos: int, board: list[Piece | None]):
+    def get_special_pawn_moves(self, piece_pos: int, board: list[Piece | None], mask: bool = False):
 
         moves = []
 
@@ -247,45 +278,78 @@ class Board():
         for move in piece.attack_pattern[0]:
 
             # Makes sure move is within the board
-            if piece_pos + move < 0 or piece_pos + move > 63:
+            if piece_pos + move <= 0 or piece_pos + move >= 63:
                 break
 
             # Checks if there is an piece on attack spot
-            if board[piece_pos + move] != None and board[piece_pos + move].color != piece.color:
+            if (board[piece_pos + move] != None and board[piece_pos + move].color != piece.color) or mask:
                 moves.append(piece_pos + move)
 
-        # Checks if an opposing pawn is to the left of pawn, and if en passant is allowed
-        if isinstance(board[piece_pos - 1], Pawn):
-            if board[piece_pos - 1].en_passant:
-                moves.append(
-                    (piece_pos + piece.attack_pattern[0][0]))
+        sides = [1, -1]
 
-        # # Checks if an opposing pawn is to the right of pawn, and if en passant is allowed
-        if isinstance(board[piece_pos + 1], Pawn):
-            if board[piece_pos + 1].en_passant:
-                moves.append((piece_pos + piece.attack_pattern[0][1]))
+        # Checks if an opposing pawn is to the left or right of the pawn, and if en passant is allowed
+        for side in sides:
+            if piece_pos + side <= 0 and piece_pos + side >= 63 and isinstance(board[piece_pos + side], Pawn):
+                if board[piece_pos + side].en_passant:
+
+                    copy_board = deepcopy(board)
+                    copy_board[piece_pos] = None
+                    copy_board[piece_pos + side] = None
+
+                    pins, _ = self.num_king_pinned(copy_board)
+                    if pins == 0:
+                        index = 0 if side == -1 else 1
+                        moves.append(
+                            piece_pos + piece.attack_pattern[0][index])
+
+        # # # Checks if an opposing pawn is to the right of pawn, and if en passant is allowed
 
         return moves
+
+    def promote_pawn(self, piece_pos, upgrade_piece):
+
+        symbol = upgrade_piece.upper(
+        ) if self.board[piece_pos].color == "white" else upgrade_piece.lower()
+
+        match symbol.lower():
+            case "q":
+                new_piece = Queen(symbol)
+            case "r":
+                new_piece = Rook(symbol)
+            case "b":
+                new_piece = Bishop(symbol)
+            case "n":
+                new_piece = Knight(symbol)
+            case _:
+                new_piece = Queen("q" if symbol.islower() else "Q")
+
+        new_piece.have_moved = False
+
+        self.board[piece_pos] = new_piece
+
+        return
 
     def get_castle_moves(self, king_pos: int, board: list[Piece | None]):
 
         moves = []
 
         # Select the piece, if any, at king's side rook position
-        r_ks = board[king_pos + 3]
+        if king_pos + 3 < 64:
+            r_ks = board[king_pos + 3]
 
-        # Check if selected piece is a rook, and have not moved
-        if isinstance(r_ks, Rook) and not r_ks.have_moved:
-            if self.castle_available(king_pos, king_pos + 3):
-                board[king_pos].castle = True
-                moves.append(king_pos + 2)
+            # Check if selected piece is a rook, and have not moved
+            if isinstance(r_ks, Rook) and not r_ks.have_moved:
+                if self.castle_available(king_pos, king_pos + 3, board):
+                    board[king_pos].castle = True
+                    moves.append(king_pos + 2)
 
-        r_qs = board[king_pos - 4]
+        if king_pos - 4 > -1:
+            r_qs = board[king_pos - 4]
 
-        if isinstance(r_qs, Rook) and not r_qs.have_moved:
-            if self.castle_available(king_pos, king_pos - 4):
-                board[king_pos].castle = True
-                moves.append(king_pos - 2)
+            if isinstance(r_qs, Rook) and not r_qs.have_moved:
+                if self.castle_available(king_pos, king_pos - 4, board):
+                    board[king_pos].castle = True
+                    moves.append(king_pos - 2)
 
         return moves
 
@@ -304,49 +368,141 @@ class Board():
         if between_spaces.count(None) != pos_delta - 1:
             return False
 
-        # for new_pos in between_space_pos:
-            # if not self.is_move_legal(king_pos, king_pos + (x * new_pos)):
-            # return False
+        enemy_mask = self.get_opponent_move_mask(board)
+
+        for new_pos in between_space_pos:
+            if new_pos in enemy_mask:
+                return False
 
         return True
 
-    # def is_move_legal(self, from_pos: int, to_pos: int, board: list[Piece | None], turn: bool):
+    def is_game_over(self):
 
-    #     symbol = "K" if turn else "k"
+        if self.is_player_checkmate():
+            reason = "Checkmate"
 
-    #     examine_board = deepcopy(board)
+        elif self.is_stalemate():
+            reason = "Stalemate"
 
-    #     # self.
+        elif self.is_dead_pos():
+            reason = "Deadpos"
+
+        elif self.fifty_move_draw():
+            reason = "Fifty-move-rule"
+
+        else:
+            reason = None
+
+        if reason is not None:
+            self.end_game_reason = reason
+            return True
+
+        else:
+            return False
+
+    def is_stalemate(self):
+        whites, blacks = self.get_board_pieces(self.board)
+
+        pieces = whites if self.turn else blacks
+
+        for piece in pieces:
+            legal_moves = self.get_all_legal_moves_for_pos(piece)
+
+            if len(legal_moves) > 0:
+                return False
+
+        return True
+
+    def is_player_checkmate(self):
+        pins, _ = self.num_king_pinned(self.board)
+
+        if pins == 0:
+            return False
+
+        no_moves = self.is_stalemate()
+
+        return no_moves
+
+    def is_dead_pos(self):
+        whites, blacks = self.get_board_pieces(self.board)
+
+        if len(whites) == 1 and len(blacks) == 1:
+            if isinstance(self.board[whites[0]], King) and isinstance(self.board[blacks[0]], King):
+                return True
+
+        elif (len(whites) == 2 and len(blacks) == 1) or (len(whites) == 1 and len(blacks) == 2):
+            big, small = (blacks, whites) if len(
+                whites) == 1 else (whites, blacks)
+            big.sort(key=self.sort_piece_func)
+            small.sort(key=self.sort_piece_func)
+
+            if (isinstance(self.board[big[1]], Bishop) or isinstance(self.board[big[1]], Knight)) and \
+                    isinstance(self.board[big[0]], King) and isinstance(self.board[small[0]], King):
+                return True
+
+        elif len(whites) == 2 and len(blacks) == 2:
+            whites.sort(key=self.sort_piece_func)
+            blacks.sort(key=self.sort_piece_func)
+
+            if isinstance(whites[0], King) and isinstance(whites[1], Bishop) and isinstance(blacks[0], King) and isinstance(blacks[1], Bishop):
+                if whites[1] % 2 == blacks[1] % 2:
+                    return True
+
+        return False
+
+    def fifty_move_draw(self):
+
+        if self.fifty_consecutive_moves >= 100:
+            return True
+
+        return False
+
+    def end_turn(self):
+        self.turn = not self.turn
+
+        whites, blacks = self.get_board_pieces(self.board)
+
+        pieces = whites if self.turn else blacks
+
+        for piece_pos in pieces:
+            if isinstance(self.board[piece_pos], Pawn):
+                self.board[piece_pos].en_passant = False
+
+            if isinstance(self.board[piece_pos], King):
+                self.board[piece_pos].castle = False
 
     def make_move(self, from_pos: int, to_pos: int, board: list[Piece | None]):
 
         en_passant_move = 0
+        reset_fifty_move = False
 
         if board[to_pos] is not None:
             message = f" and killed {board[to_pos]}"
+            reset_fifty_move = True
 
         # Checks if attacking piece is a Pawn and is trying to do en passant
         elif isinstance(board[from_pos], Pawn):
 
-            # Check if white performed en passant
-            if (to_pos - 8) >= 0 and isinstance(board[to_pos - 8], Pawn) and board[to_pos - 8].en_passant:
-                message = f" and killed {board[to_pos - 8]}"
-                en_passant_move = to_pos - 8
+            color_moves = board[from_pos].pattern * -1
 
-            # Check if black performed en passant
-            elif (to_pos + 8) <= 63 and isinstance(board[to_pos + 8], Pawn) and board[to_pos + 8].en_passant:
-                message = f" and killed {board[to_pos + 8]}"
-                en_passant_move = to_pos + 8
+            # Check if white or black performed en passant
+            for move in color_moves:
+                if (to_pos + move) >= 0 and isinstance(board[to_pos + move], Pawn) and board[to_pos + move].en_passant:
+                    message = f" and killed {board[to_pos + move]}"
+                    reset_fifty_move = True
+                en_passant_move = to_pos + move
 
             else:
                 # No added message if not piece was killed
                 message = ""
+            
+            reset_fifty_move = True
 
         else:
             # No added message if not piece was killed
             message = ""
 
-        if isinstance(board[from_pos], King) and board[from_pos].castle:
+        if isinstance(board[from_pos], King) and board[from_pos].castle and abs(from_pos - to_pos) == 2:
             self.make_move_castle(from_pos, to_pos, board)
             return
 
@@ -368,6 +524,12 @@ class Board():
         # Move piece from 'from_pos' to 'to_pos' and leave 'from_pos' with None
         board[to_pos] = board[from_pos]
         board[from_pos] = None
+
+        # Increment fift_consecutive_moves_ rule
+        self.fifty_consecutive_moves += 1
+
+        if reset_fifty_move:
+            self.fifty_consecutive_moves = 0
 
         # Removes piece if piece was killed with en passant
         if en_passant_move != 0:
