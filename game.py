@@ -1,12 +1,15 @@
 import sys
+import os
 import math
 from time import sleep, time
 from ai import ArtificialChessOpponent as ACO
 from chess_1 import Board
 from pieces import Pawn
 
+from multiprocessing.pool import Pool
 
-def main():
+
+def main(args):
     # print("Started script")
 
     # board = Board("8/8/8/8/2rPK3/8/8/8")
@@ -82,19 +85,6 @@ def main():
         
     else:
         print(f"Game ended in a draw by {board.end_game_reason}")
-
-
-
-
-
-
-def print_turn(board: Board):
-
-    # Decide wether its whites or blacks turn
-    turn = "White" if board.turn else "Black"
-
-    # Print whose turn it is
-    print(f"{turn} turn to make a move")
 
 
 def select_a_piece(board: Board):
@@ -231,7 +221,13 @@ if __name__ == "__main__":
 
 
     init_time = time()
-    for i in range(100):
-        main()
+
+    pool = Pool(os.cpu_count())
+
+    pool.map(main, range(10000))
+
+
+    # for i in range(100):
+    #     main()
     
     print(time() - init_time)

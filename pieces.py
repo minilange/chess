@@ -71,6 +71,7 @@ class Knight(Piece):
 
 class Rook(Piece):
     symbol = "R"
+    have_moved = True
     pattern = [
         max_move(-8),  # Top
         max_move(1),   # Right
@@ -82,6 +83,7 @@ class Rook(Piece):
 class Pawn(Piece):
     symbol = "P"
     en_passant = False
+    have_moved = True
 
     pattern = {
         "P": [[-8]],

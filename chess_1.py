@@ -23,7 +23,8 @@ class Board():
     turn = True
     end_game_reason = None
     # reset on pawn move and piece capture, increment every turn end
-    fifty_consecutive_moves = 0
+    half_clock = 0
+    full_move_num = 0
 
     def __init__(self, fen: str = ""):
         self.board_history = []
@@ -101,14 +102,17 @@ class Board():
 
                 # Checks if new valuse is out of bounds in top or bottom
                 if total < 0 or total > 63:
-                    break
+                    if isinstance(piece, Knight):
+                        continue
+                    else:
+                        break
 
                 if idx == 0:
                     idx_offset = 0
 
                 # Checks if move is exceeding the side border, and breaks if so
                 # print(total, piece_pos, dir[idx + idx_offset])
-                if outside_border(total, piece_pos, dir[idx + idx_offset]) and not isinstance(piece, Knight):
+                if not isinstance(piece, Knight) and outside_border(total, piece_pos, dir[idx + idx_offset]):
                     break
 
                 # If piece is a Knight, make special check for out of bounds on sides
@@ -119,7 +123,11 @@ class Board():
                 if board[total] != None:
                     if board[total].color != piece.color and not isinstance(piece, Pawn):
                         possible_moves.append(total)
-                    break
+
+                    if isinstance(piece, Knight):
+                        continue
+                    else:
+                        break
 
                 # Makes sure offset num is not making it to be Out of Bounds
                 if idx == 0:
@@ -195,11 +203,10 @@ class Board():
             for move in piece_moves:
                 if move in mask:
                     moves.append(move)
-            
-        
+
         else:
             moves = self.get_all_piece_moves(piece_pos, self.board)
-        
+
         # removes any move that leaves the king pinned
         for move in deepcopy(moves):
             copy_board = deepcopy(self.board)
@@ -211,7 +218,6 @@ class Board():
 
             if pins > 0:
                 moves.remove(move)
-
 
         return moves
 
@@ -255,12 +261,10 @@ class Board():
             board[king] = piece
             moves = self.get_all_piece_moves(king, board)
 
-
             # print(type(piece))
 
             for move in moves:
                 if board[move] is not None and board[move].color != color:
-                    
 
                     if type(board[move]) == type(piece) or (type(board[move]) == Queen and type(piece) != Knight):
                         num_pinned += 1
@@ -452,7 +456,7 @@ class Board():
 
     def fifty_move_draw(self):
 
-        if self.fifty_consecutive_moves >= 100:
+        if self.half_clock >= 100:
             return True
 
         return False
@@ -495,7 +499,7 @@ class Board():
             else:
                 # No added message if not piece was killed
                 message = ""
-            
+
             reset_fifty_move = True
 
         else:
@@ -506,8 +510,8 @@ class Board():
             self.make_move_castle(from_pos, to_pos, board)
             return
 
-        print(
-            f"Moved {self.int_to_pos(from_pos)} to {self.int_to_pos(to_pos)}{message}")
+        # print(
+        #     f"Moved {self.int_to_pos(from_pos)} to {self.int_to_pos(to_pos)}{message}")
 
         # Marks pawn as able to be killed with 'en passant'
         # Handles all special cases there is for a pawn
@@ -526,10 +530,10 @@ class Board():
         board[from_pos] = None
 
         # Increment fift_consecutive_moves_ rule
-        self.fifty_consecutive_moves += 1
+        self.half_clock += 1
 
         if reset_fifty_move:
-            self.fifty_consecutive_moves = 0
+            self.half_clock = 0
 
         # Removes piece if piece was killed with en passant
         if en_passant_move != 0:
@@ -564,8 +568,6 @@ class Board():
 
         # Initiates a list for the whole board, and both black and white pieces
         board = []
-        blacks = []
-        whites = []
 
         # Splits fen notation of the board into 8 ranks
         split_fen = fen_pieces[0].split("/")
@@ -602,29 +604,81 @@ class Board():
                         case "p":
                             piece = Pawn(entry)
                         case _:
-                            print(
-                                "Invalid FEN notation - returns to default setting")
-                            return self.load_fen_board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR")
+                            return self.invalid_fen_notation()
 
                     # Append the piece to its position on the board
                     board.append(piece)
 
-                    # Checks the color of the piece by char-case, appends to correct list
-                    if entry.islower():
-                        blacks.append(len(board) - 1)
-                    else:
-                        whites.append(len(board) - 1)
+                    # Check if piece is at the original starting spot
+                    board[-1].have_moved = self.piece_have_moved(
+                        board[-1].symbol, len(board) - 1)
 
         # If FEN notation is not correct, use default game
         if len(board) != 64:
-            print("Invalid FEN notation - returns to default setting")
-            return self.load_fen_board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR")
+            return self.invalid_fen_notation()
+
+        # Set whos turn it is
+        try:
+            self.turn = True if fen_pieces[1] == "w" else False
+        except IndexError:
+            return self.invalid_fen_notation()
+
+        # Set correct castling options
+        char_pos = {"Q": 56, "K": 63, "q": 0, "k": 7}
+        try:
+            for opt in ["Q", "K", "q", "k"]:
+                if opt in fen_pieces[2] and isinstance(board[char_pos[opt]], Rook):
+                    board[char_pos[opt]].have_moved = False
+        except IndexError:
+            return self.invalid_fen_notation()
+
+        # Set active en passant
+        try:
+            if fen_pieces[3] != "-":
+                board[self.select_piece(fen_pieces[3])].en_passant = True
+        except IndexError:
+            return self.invalid_fen_notation()
+
+        # Sets halfclock
+        try:
+            self.half_clock = int(fen_pieces[4])
+        except IndexError:
+            return self.invalid_fen_notation()
+
+        # Set full move numer
+        try:
+            self.full_move_num = int(fen_pieces[5])
+        except NameError:
+            return self.invalid_fen_notation()
 
         self.board = board
-        self.blacks = blacks
-        self.whites = whites
+
+    def invalid_fen_notation(self):
+        # print("Invalid FEN notation - returns to default setting")
+        return self.load_fen_board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+
+    def piece_have_moved(self, symbol, pos):
+        values = {
+            "r": [0, 7],
+            "n": [1, 6],
+            "b": [2, 5],
+            "q": [3],
+            "k": [4],
+            "p": [8, 9, 10, 11, 12, 13, 14, 15],
+
+            "R": [56, 63],
+            "N": [57, 62],
+            "B": [58, 61],
+            "Q": [59],
+            "K": [60],
+            "P": [48, 49, 40, 41, 42, 43, 44, 45],
+        }
+
+        return pos not in values[symbol]
 
     def display(self, board=None):
+
+        # return
 
         if board is None:
             board = self.board
