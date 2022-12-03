@@ -648,7 +648,7 @@ class Board():
         # Set full move numer
         try:
             self.full_move_num = int(fen_pieces[5])
-        except NameError:
+        except IndexError:
             return self.invalid_fen_notation()
 
         self.board = board
