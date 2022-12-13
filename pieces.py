@@ -22,7 +22,7 @@ class Piece:
 
 class King(Piece):
     symbol = "K"
-    caslte = False
+    castle = False
     pattern = [
         [-8],  # Top
         [-7],  # Top Right
@@ -83,7 +83,7 @@ class Rook(Piece):
 class Pawn(Piece):
     symbol = "P"
     en_passant = False
-    have_moved = True
+    have_moved = False
 
     pattern = {
         "P": [[-8]],

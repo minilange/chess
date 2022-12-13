@@ -21,8 +21,9 @@ def outside_border(total, pos, offset):
 class Board():
 
     turn = True
+    threefold_history = []
     end_game_reason = None
-    # reset on pawn move and piece capture, increment every turn end
+    current_en_passant = None
     half_clock = 0
     full_move_num = 0
 
@@ -83,6 +84,9 @@ class Board():
 
             possible_moves += self.get_special_pawn_moves(
                 piece_pos, board, mask)
+
+            if mask:
+                return possible_moves
 
         # Check if piece is the king and have not moved, for castling
         if isinstance(piece, King) and not piece.have_moved and not mask:
@@ -154,7 +158,8 @@ class Board():
 
         all_moves = []
         for piece in enemy_pieces:
-            all_moves += self.get_all_piece_moves(piece, copy_board, True)
+            moves = self.get_all_piece_moves(piece, copy_board, True)
+            all_moves += moves
 
         all_moves = list(set(all_moves))
 
@@ -194,18 +199,18 @@ class Board():
         if pins == 2:
             return []
 
-        elif pins == 1:
+        # elif pins == 1:
 
-            piece_moves = self.get_all_piece_moves(piece_pos, self.board)
-            moves = []
+            # moves = self.get_all_piece_moves(piece_pos, self.board)
+            # moves = []
 
-            mask = self.get_opponent_move_mask(self.board)
-            for move in piece_moves:
-                if move in mask:
-                    moves.append(move)
-
-        else:
-            moves = self.get_all_piece_moves(piece_pos, self.board)
+            # mask = self.get_opponent_move_mask(self.board)
+            # for move in piece_moves:
+            #     if move in mask:
+            #         moves.append(move)
+#
+        # else:
+        moves = self.get_all_piece_moves(piece_pos, self.board)
 
         # removes any move that leaves the king pinned
         for move in deepcopy(moves):
@@ -261,8 +266,6 @@ class Board():
             board[king] = piece
             moves = self.get_all_piece_moves(king, board)
 
-            # print(type(piece))
-
             for move in moves:
                 if board[move] is not None and board[move].color != color:
 
@@ -281,9 +284,9 @@ class Board():
         # Checks if Pawn can kill an opponant piece
         for move in piece.attack_pattern[0]:
 
-            # Makes sure move is within the board
-            if piece_pos + move <= 0 or piece_pos + move >= 63:
-                break
+            # Makes sure move is within the board and does not escape sides
+            if piece_pos + move <= 0 or piece_pos + move >= 63 or (piece_pos % 8 == 0 and (piece_pos + move) % 8 == 7) or (piece_pos % 8 == 7 and (piece_pos + move) % 8 == 0):
+                continue
 
             # Checks if there is an piece on attack spot
             if (board[piece_pos + move] != None and board[piece_pos + move].color != piece.color) or mask:
@@ -375,7 +378,7 @@ class Board():
         enemy_mask = self.get_opponent_move_mask(board)
 
         for new_pos in between_space_pos:
-            if new_pos in enemy_mask:
+            if king_pos + (new_pos * x) in enemy_mask:
                 return False
 
         return True
@@ -393,6 +396,9 @@ class Board():
 
         elif self.fifty_move_draw():
             reason = "Fifty-move-rule"
+
+        elif self.threefold_repetition():
+            reason = "Threefold repetition"
 
         else:
             reason = None
@@ -426,6 +432,21 @@ class Board():
         no_moves = self.is_stalemate()
 
         return no_moves
+
+    def threefold_repetition(self):
+        boards = {}
+
+        for board in self.threefold_history:
+
+            if board in boards:
+                boards[board] += 1
+            else:
+                boards[board] = 1
+
+            if boards[board] == 3:
+                return True
+
+        return False
 
     def is_dead_pos(self):
         whites, blacks = self.get_board_pieces(self.board)
@@ -462,18 +483,28 @@ class Board():
         return False
 
     def end_turn(self):
+
+        splits = self.export_fen_notation().split(" ")
+        new_board = f"{splits[0]} {splits[1]} {splits[2]} {splits[3]}"
+
+        self.threefold_history.append(new_board)
         self.turn = not self.turn
 
-        whites, blacks = self.get_board_pieces(self.board)
+        if self.current_en_passant is not None:
+            self.board[self.current_en_passant].en_passant = False
+            self.current_en_passant = None
 
-        pieces = whites if self.turn else blacks
+        # whites, blacks = self.get_board_pieces(self.board)
 
-        for piece_pos in pieces:
-            if isinstance(self.board[piece_pos], Pawn):
-                self.board[piece_pos].en_passant = False
+        # pieces = whites if self.turn else blacks
 
-            if isinstance(self.board[piece_pos], King):
-                self.board[piece_pos].castle = False
+        # for piece_pos in pieces:
+        #     if isinstance(self.board[piece_pos], Pawn):
+        #         self.board[piece_pos].en_passant = False
+        #         self.current_en_passant = "-"
+
+            # if isinstance(self.board[piece_pos], King):
+            #     self.board[piece_pos].castle = False
 
     def make_move(self, from_pos: int, to_pos: int, board: list[Piece | None]):
 
@@ -483,6 +514,7 @@ class Board():
         if board[to_pos] is not None:
             message = f" and killed {board[to_pos]}"
             reset_fifty_move = True
+            self.threefold_history = []
 
         # Checks if attacking piece is a Pawn and is trying to do en passant
         elif isinstance(board[from_pos], Pawn):
@@ -493,7 +525,6 @@ class Board():
             for move in color_moves:
                 if (to_pos + move) >= 0 and isinstance(board[to_pos + move], Pawn) and board[to_pos + move].en_passant:
                     message = f" and killed {board[to_pos + move]}"
-                    reset_fifty_move = True
                 en_passant_move = to_pos + move
 
             else:
@@ -501,6 +532,7 @@ class Board():
                 message = ""
 
             reset_fifty_move = True
+            self.threefold_history = []
 
         else:
             # No added message if not piece was killed
@@ -520,6 +552,7 @@ class Board():
 
             # Makes sure piece moved two files and have not moved before
             if (to_pos - from_pos) in piece.init_pattern[0] and not piece.have_moved:
+                self.current_en_passant = from_pos
                 piece.en_passant = True
 
         # Makes sure piece is marked as moved
@@ -529,7 +562,7 @@ class Board():
         board[to_pos] = board[from_pos]
         board[from_pos] = None
 
-        # Increment fift_consecutive_moves_ rule
+        # Increment fifty_consecutive_moves_ rule
         self.half_clock += 1
 
         if reset_fifty_move:
@@ -635,7 +668,20 @@ class Board():
         # Set active en passant
         try:
             if fen_pieces[3] != "-":
-                board[self.select_piece(fen_pieces[3])].en_passant = True
+                en_passant_pos = fen_pieces[3]
+
+                if self.select_piece(en_passant_pos) in [40, 41, 42, 43, 44, 45, 46, 47]:
+                    pos = self.select_piece(en_passant_pos) - 8
+
+                elif self.select_piece(en_passant_pos) in [16, 17, 18, 19, 20, 21, 22, 23]:
+                    pos = self.select_piece(en_passant_pos) + 8
+
+                print(pos)
+
+                if pos is not None:
+                    board[pos].en_passant = True
+                    self.current_en_passant = pos
+
         except IndexError:
             return self.invalid_fen_notation()
 
@@ -645,7 +691,7 @@ class Board():
         except IndexError:
             return self.invalid_fen_notation()
 
-        # Set full move numer
+        # Set full move number
         try:
             self.full_move_num = int(fen_pieces[5])
         except IndexError:
@@ -671,10 +717,76 @@ class Board():
             "B": [58, 61],
             "Q": [59],
             "K": [60],
-            "P": [48, 49, 40, 41, 42, 43, 44, 45],
+            "P": [48, 49, 50, 51, 52, 53, 54, 55],
         }
 
         return pos not in values[symbol]
+
+    def export_fen_notation(self):
+
+        fen = ""
+        empty_fields = 0
+
+        # Set board string
+        for idx, pos in enumerate(self.board):
+
+            if idx % 8 == 0 and idx != 0:
+                if empty_fields != 0:
+                    fen += str(empty_fields)
+                empty_fields = 0
+
+                fen += "/"
+
+            if pos is None:
+                empty_fields += 1
+            else:
+                if empty_fields != 0:
+                    fen += str(empty_fields)
+
+                fen += pos.symbol
+                empty_fields = 0
+        if empty_fields != 0:
+            fen += f"{empty_fields}"
+
+        # Set turn
+        fen += f" {'w' if self.turn else 'b'}"
+
+        # Find castling options
+        castling = ""
+        if isinstance(self.board[60], King) and not self.board[60].have_moved:
+
+            if isinstance(self.board[63], Rook) and not self.board[63].have_moved:
+                castling += "K"
+            if isinstance(self.board[56], Rook) and not self.board[56].have_moved:
+                castling += "Q"
+
+        if isinstance(self.board[4], King) and not self.board[4].have_moved:
+
+            if isinstance(self.board[7], Rook) and not self.board[7].have_moved:
+                castling += "k"
+            if isinstance(self.board[0], Rook) and not self.board[0].have_moved:
+                castling += "q"
+
+        # Set castling options
+        fen += f" {castling if len(castling) != 0 else '-'}"
+
+        # Set en passant options
+        if self.current_en_passant is None:
+            fen += "-"
+
+        elif self.board[self.current_en_passant].color == "white":
+            fen += f" {self.int_to_pos(self.current_en_passant + 8)}"
+        else:
+            fen += f" {self.int_to_pos(self.current_en_passant - 8)}"
+        
+
+        # Set half moves clock
+        fen += f" {self.half_clock}"
+
+        # Set full move clock
+        fen += f" {self.full_move_num}"
+
+        return fen
 
     def display(self, board=None):
 

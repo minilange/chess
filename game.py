@@ -50,7 +50,7 @@ def main(args):
     opponent = ACO(color="black" if player_color else "white")
     player = ACO(color="white" if player_color else "black")
 
-    board = Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR")
+    board = Board("r6r/1b2k1bq/8/8/7B/8/8/R3K2R b KQ - 3 2")
     # board = Board()
 
     while not board.is_game_over():
@@ -58,10 +58,10 @@ def main(args):
         board.display()
 
         if board.turn == player_color:
-            # piece, moves = select_a_piece(board)
+        #     piece, moves = select_a_piece(board)
 
-            # while not select_move(board, piece, moves):
-            #     piece, moves = select_a_piece(board)
+        #     while not select_move(board, piece, moves):
+        #         piece, moves = select_a_piece(board)
 
             player.random_move(board)
 
@@ -152,6 +152,7 @@ def display_options(board: Board, selected: str):
             copy[move] = "#"
         else:
             copy[move] = "X"
+    print(len(moves))
 
     # Display copy board with move options
     board.display(copy)
@@ -217,17 +218,14 @@ def choose_promotion(piece_pos: int, board: Board):
 
 
 if __name__ == "__main__":
-    # sys.setrecursionlimit(20)
 
+    # init_time = time()
 
-    init_time = time()
+    # pool = Pool(os.cpu_count())
 
-    pool = Pool(os.cpu_count())
+    # pool.map(main, range(10000))
 
-    pool.map(main, range(10000))
+    # print(time() - init_time)
 
-
-    # for i in range(100):
-    #     main()
+    main([])
     
-    print(time() - init_time)
