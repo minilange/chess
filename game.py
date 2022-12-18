@@ -50,28 +50,28 @@ def main(args):
     opponent = ACO(color="black" if player_color else "white")
     player = ACO(color="white" if player_color else "black")
 
-    board = Board("r6r/1b2k1bq/8/8/7B/8/8/R3K2R b KQ - 3 2")
-    # board = Board()
+    # board = Board("r6r/1b2k1bq/8/8/7B/8/8/R3K2R b KQ - 3 2")
+    board = Board()
 
     while not board.is_game_over():
 
         board.display()
 
         if board.turn == player_color:
-        #     piece, moves = select_a_piece(board)
+            piece, moves = select_a_piece(board)
 
-        #     while not select_move(board, piece, moves):
-        #         piece, moves = select_a_piece(board)
+            while not select_move(board, piece, moves):
+                piece, moves = select_a_piece(board)
 
-            player.random_move(board)
+            # player.random_move(board)
 
         else:
-            opponent.random_move(board)
+            # opponent.random_move(board)
 
-            # piece, moves = select_a_piece(board)
+            piece, moves = select_a_piece(board)
 
-            # while not select_move(board, piece, moves):
-            #     piece, moves = select_a_piece(board)
+            while not select_move(board, piece, moves):
+                piece, moves = select_a_piece(board)
 
         # sleep(0.1)
         board.end_turn()

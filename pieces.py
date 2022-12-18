@@ -1,6 +1,24 @@
-
 def max_move(num):
     return [num*(n+1) for n in range(7)]
+
+def get_unicode_symbol(piece):
+    symbols = {
+        "k": "\u2654",
+        "q": "\u2655",
+        "r": "\u2656",
+        "b": "\u2657",
+        "n": "\u2658",
+        "p": "\u2659",
+
+        "K": "\u265A",
+        "Q": "\u265B",
+        "R": "\u265C",
+        "B": "\u265D",
+        "N": "\u265E",
+        "P": "\u265F",
+    }
+
+    return symbols[piece]
 
 
 class Piece:
@@ -18,7 +36,7 @@ class Piece:
             self.attack_pattern = self.attack_pattern[symbol]
 
     def __str__(self) -> str:
-        return self.symbol
+        return get_unicode_symbol(self.symbol)
 
 class King(Piece):
     symbol = "K"

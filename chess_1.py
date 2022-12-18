@@ -552,7 +552,7 @@ class Board():
 
             # Makes sure piece moved two files and have not moved before
             if (to_pos - from_pos) in piece.init_pattern[0] and not piece.have_moved:
-                self.current_en_passant = from_pos
+                self.current_en_passant = to_pos
                 piece.en_passant = True
 
         # Makes sure piece is marked as moved
