@@ -97,7 +97,7 @@ def select_a_piece(board: Board):
 
         # Retrieve userinput move
         move = input(
-            "Select a piece to display it's possible movements: ").lower()
+            "Select a piece to display its possible movements: ").lower()
 
         # Checks if selected position is a valid position
         if len(move) != 2:
@@ -152,8 +152,7 @@ def display_options(board: Board, selected: str):
             copy[move] = "#"
         else:
             copy[move] = "X"
-    print(len(moves))
-
+            
     # Display copy board with move options
     board.display(copy)
 
